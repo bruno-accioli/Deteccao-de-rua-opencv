@@ -4,6 +4,7 @@ from moviepy.video.io.ffmpeg_tools import ffmpeg_extract_subclip
 from math import floor
 from sklearn.cluster import KMeans
 import matplotlib.pyplot as plt
+from math import ceil
 
 def mudarEscala(img, max_valor=255.0):
     escala = np.max(img)/max_valor
@@ -23,10 +24,7 @@ def AplicarSobel(img, k = 5):
 
 def playVideo(video):
     while(video.isOpened()):
-        ret, frame = video.read()
-    
-#        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    
+        ret, frame = video.read()  
         cv2.imshow('frame',frame)
         if  cv2.waitKey(1) & 0xFF == ord('q'):
             break
@@ -89,16 +87,16 @@ def processarImagem(img, pontosRua, sobelSize = 5, threshold_min = 50):
     MatDist = cv2.getPerspectiveTransform(pontosRua, destino)
     
     # Monstrar pontos
-#    img2 = img.copy()
-#    img2 = cv2.circle(img2, tuple(topoEsq), 3, (255,0,0), thickness=1, lineType=8, shift=0) 
-#    img2 = cv2.circle(img2, tuple(topoDir), 3, (0,255,0), thickness=1, lineType=8, shift=0)
-#    img2 = cv2.circle(img2, tuple(baseDir), 3, (0,0,255), thickness=1, lineType=8, shift=0)
-#    img2 = cv2.circle(img2, tuple(baseEsq), 3, (0,255,255), thickness=1, lineType=8, shift=0)
-#    
-#    mostrarImagem(img2)
+    img2 = img.copy()
+    img2 = cv2.circle(img2, tuple(topoEsq), 3, (255,0,0), thickness=1, lineType=8, shift=0) 
+    img2 = cv2.circle(img2, tuple(topoDir), 3, (0,255,0), thickness=1, lineType=8, shift=0)
+    img2 = cv2.circle(img2, tuple(baseDir), 3, (0,0,255), thickness=1, lineType=8, shift=0)
+    img2 = cv2.circle(img2, tuple(baseEsq), 3, (0,255,255), thickness=1, lineType=8, shift=0)
+    
+    mostrarImagem(img2)
     
     img_distorcida = cv2.warpPerspective(img, MatDist, (LARGURA, ALTURA))
-#    mostrarImagem(img_distorcida)
+    mostrarImagem(img_distorcida)
     
     # Coverter para HSV
     img_hsv = cv2.cvtColor(img_distorcida, cv2.COLOR_BGR2HSV)
@@ -115,13 +113,13 @@ def processarImagem(img, pontosRua, sobelSize = 5, threshold_min = 50):
     BrancoHsvMin  = np.array([50, 13, 160])
     BrancoHsvMax = np.array([255, 180, 255])
     mascaraBranco = cv2.inRange(img_hsv, BrancoHsvMin, BrancoHsvMax)
-#    mostrarImagem(mascaraBranco)
+    mostrarImagem(mascaraBranco)
     
     
     # Aplicar Sobel    
     sobel = AplicarSobel(img_bw, k = 5)
-    sobel = 255 * aplicarThreshold(sobel, threshold_min = threshold_min, threshold_max = 255)
-#    mostrarImagem(sobel)
+    sobel = aplicarThreshold(sobel, threshold_min = threshold_min, threshold_max = 255)
+    mostrarImagem(sobel)
     
     # Mascaras Combinadas
     mascara = cv2.bitwise_or(mascaraAmarelo, mascaraBranco)
@@ -132,13 +130,6 @@ def processarImagem(img, pontosRua, sobelSize = 5, threshold_min = 50):
     return mascara
 #    res = cv2.bitwise_and(img_distorcida,img_distorcida, mask=mascara)
 #    mostrarImagem(res)
-
-#processarImagem(imagensTeste[0], pontosRua, 21)
-#for i in range(len(imagensTeste)):
-#    processarImagem(imagensTeste[i], pontosRua)
-#    mostrarImagem(res)
-
-#def AplicarMascaraDeCor(img, low, up)
 
 def pegarPontosDaRua(larguraBaseRazao, larguraTopoRazao, alturaRazao, 
                      pixelsDoCarroRazao, DeslocamentoLateralRazao = 0):
@@ -154,7 +145,46 @@ def pegarPontosDaRua(larguraBaseRazao, larguraTopoRazao, alturaRazao,
     
     return pontoTopoEsquerda, pontoTopoDireita, pontoBaseDireita, pontoBaseEsquerda
 
+def gerarCurvasDaFaixa(img, n_janelas, margem=50, tolerancia = 25):
+    # Achar picos do histograma da metade de baixo da imagem    
+    histograma = np.sum(img[int(ALTURA/2):,:], axis=0)
+    metade = int(LARGURA/2)
+    picoEsquerdoBase = np.argmax(histograma[:metade])
+    picoDireitoBase = np.argmax(histograma[metade:]) + metade
     
+    mascara = np.zeros_like(img)
+
+    # Para cada janela horizontal, gerar uma mascara
+    ultimoPicoEsquerdo = picoEsquerdoBase
+    ultimoPicoDireito = picoDireitoBase
+    alturaJanela = ceil(ALTURA/n_janelas)
+    for inicioJanela in np.arange(0, ALTURA, alturaJanela):
+        fimJanela = inicioJanela+alturaJanela
+        histograma = np.sum(img[inicioJanela:fimJanela,:], axis=0)
+        picoEsquerdo = np.argmax(histograma[:metade])
+        picoDireito = np.argmax(histograma[metade:]) + metade
+        
+        if (not checarPicoValido(picoEsquerdo, ultimoPicoEsquerdo, tolerancia)):
+            picoEsquerdo = ultimoPicoEsquerdo
+        mascara[inicioJanela:fimJanela, picoEsquerdo-margem:picoEsquerdo+margem] = 1
+
+        if (checarPicoValido(picoDireito-metade, ultimoPicoDireito, tolerancia)):
+            picoDireito = ultimoPicoDireito
+        mascara[inicioJanela:fimJanela, picoDireito-margem:picoDireito+margem] = 1
+        ultimoPicoEsquerdo = picoEsquerdo
+        ultimoPicoDireito = picoDireito
+
+    return mascara
+
+def checarPicoValido(pico, ultimoPico, tol):
+    if (abs(pico-ultimoPico) >= tol):
+        return False
+
+    if (pico == 0):
+        return False
+
+    return True
+
 # cortar video
 t1 = 28 * 60 #segundos
 t2 = 32 * 60 #segundos
@@ -206,7 +236,17 @@ pontosRua = np.float32([topoEsq, topoDir, baseDir, baseEsq])
 #    processarImagem(imagensTeste[i], pontosRua, 50)
 #mostrarImagem(imagensTeste[0])
 mascara = processarImagem(imagensTeste[0], pontosRua, 50)
-#mostrarImagem(mascara)
+mostrarImagem(mascara)
+start = time.time()
+mascara2 = gerarCurvasDaFaixa(mascara, 7)
+end=time.time()
+t=end-start
+print(t)
+mostrarImagem(mascara2 * 255)
+
+
+
+
 #hist = np.histogram(mascara)
 import time
 km = KMeans(n_clusters = 2, max_iter=3)
