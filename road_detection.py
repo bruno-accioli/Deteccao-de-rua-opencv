@@ -5,6 +5,7 @@ from math import floor
 from sklearn.cluster import KMeans
 import matplotlib.pyplot as plt
 from math import ceil
+import time
 
 def mudarEscala(img, max_valor=255.0):
     escala = np.max(img)/max_valor
@@ -126,7 +127,6 @@ def processarImagem(img, pontosRua, sobelSize = 5, threshold_min = 50):
     mascara = cv2.bitwise_or(mascara, sobel)
 #    mascara = cv2.bitwise_or(mascara, sobely)
 #    mostrarImagem(mascara)
-#    mostrarImagem(mascara)
     return mascara
 #    res = cv2.bitwise_and(img_distorcida,img_distorcida, mask=mascara)
 #    mostrarImagem(res)
@@ -147,34 +147,89 @@ def pegarPontosDaRua(larguraBaseRazao, larguraTopoRazao, alturaRazao,
 
 def gerarCurvasDaFaixa(img, n_janelas, margem=50, tolerancia = 25):
     # Achar picos do histograma da metade de baixo da imagem    
+    minpix = 50
     histograma = np.sum(img[int(ALTURA/2):,:], axis=0)
     metade = int(LARGURA/2)
     picoEsquerdoBase = np.argmax(histograma[:metade])
     picoDireitoBase = np.argmax(histograma[metade:]) + metade
+    print(np.argmax(histograma[metade:]))
+    
     
     mascara = np.zeros_like(img)
-
+    coordenadas = img.nonzero()
+    coordenadasy = np.array(coordenadas[0])
+    coordenadasx = np.array(coordenadas[1])
+    
+    faixaEsquerda = np.array([])
+    faixaDireita = np.array([])
+    
     # Para cada janela horizontal, gerar uma mascara
     ultimoPicoEsquerdo = picoEsquerdoBase
     ultimoPicoDireito = picoDireitoBase
+    picoEsquerdo = picoEsquerdoBase
+    picoDireito = picoDireitoBase
     alturaJanela = ceil(ALTURA/n_janelas)
-    for inicioJanela in np.arange(0, ALTURA, alturaJanela):
-        fimJanela = inicioJanela+alturaJanela
-        histograma = np.sum(img[inicioJanela:fimJanela,:], axis=0)
-        picoEsquerdo = np.argmax(histograma[:metade])
-        picoDireito = np.argmax(histograma[metade:]) + metade
-        
+    cont=1
+    for inicioJanela_Y in np.arange(0, ALTURA, alturaJanela):
+        fimJanela_Y = inicioJanela_Y + alturaJanela
+#        histograma = np.sum(img[inicioJanela_Y:fimJanela_Y,:], axis=0)
+#        picoEsquerdo = np.argmax(histograma[:metade])
+#        picoDireito = np.argmax(histograma[metade:]) + metade    
+        print('Iteraçao %d' %cont)
+        print('Pico Esquerdo: %d' %picoEsquerdo)
+        print('Pico Direito: %d\n' %picoDireito)
+        cont += 1
         if (not checarPicoValido(picoEsquerdo, ultimoPicoEsquerdo, tolerancia)):
             picoEsquerdo = ultimoPicoEsquerdo
-        mascara[inicioJanela:fimJanela, picoEsquerdo-margem:picoEsquerdo+margem] = 1
+        
+        inicioJanelaEsquerda_X = picoEsquerdo-margem
+        fimJanelaEsquerda_X = picoEsquerdo+margem
+        mascara[inicioJanela_Y:fimJanela_Y, inicioJanelaEsquerda_X:fimJanelaEsquerda_X] = 1
 
-        if (checarPicoValido(picoDireito-metade, ultimoPicoDireito, tolerancia)):
+        if (not checarPicoValido(picoDireito, ultimoPicoDireito, tolerancia)):
             picoDireito = ultimoPicoDireito
-        mascara[inicioJanela:fimJanela, picoDireito-margem:picoDireito+margem] = 1
+        inicioJanelaDireita_X = picoDireito-margem
+        fimJanelaDireita_X = picoDireito+margem
+        mascara[inicioJanela_Y:fimJanela_Y, inicioJanelaDireita_X:fimJanelaDireita_X] = 1
+        
+        faixaEsquerdaIds = ((coordenadasx >= inicioJanelaEsquerda_X) & (coordenadasx <= fimJanelaEsquerda_X) &
+                            (coordenadasy >= inicioJanela_Y) & (coordenadasy >= fimJanela_Y)).nonzero()[0]
+
+        faixaDireitaIds = ((coordenadasx >= inicioJanelaDireita_X) & (coordenadasx <= fimJanelaDireita_X) &
+                            (coordenadasy >= inicioJanela_Y) & (coordenadasy >= fimJanela_Y)).nonzero()[0]
+        
+        faixaDireita = np.append(faixaDireita, faixaDireitaIds, axis=0)
+        faixaEsquerda = np.append(faixaEsquerda, faixaEsquerdaIds, axis=0)
+        
         ultimoPicoEsquerdo = picoEsquerdo
         ultimoPicoDireito = picoDireito
+        
+        if len(faixaEsquerdaIds) >= minpix:
+            picoEsquerdo = np.int(np.mean(coordenadasx[faixaEsquerdaIds]))
+            
+        if len(faixaDireitaIds) >= minpix:
+            picoDireito = np.int(np.mean(coordenadasx[faixaDireitaIds]))
+    
+    faixaEsquerdax = coordenadasx[faixaEsquerda.astype(int)]
+    faixaEsquerday = coordenadasy[faixaEsquerda.astype(int)] 
+    faixaDireitax = coordenadasx[faixaDireita.astype(int)]
+    faixaDireitay = coordenadasy[faixaDireita.astype(int)] 
+    
+    # Fit a second order polynomial to each
+    faixaEsquerda_fit = np.polyfit(faixaEsquerday, faixaEsquerdax, 2)
+    faixaDireita_fit = np.polyfit(faixaDireitay, faixaDireitax, 2)
+    
+    # Generate x and y values for plotting
+    ploty = np.linspace(0, img.shape[0]-1, img.shape[0] )
+    faixaEsquerda_fitx = faixaEsquerda_fit[0]*ploty**2 + faixaEsquerda_fit[1]*ploty + faixaEsquerda_fit[2]
+    faixaDireita_fitx = faixaDireita_fit[0]*ploty**2 + faixaDireita_fit[1]*ploty + faixaDireita_fit[2]
+    
+    # Color the left lane red and the right lane blue
+    out_img = np.uint8(np.dstack((img, img, img))*255)
+    out_img[coordenadasy[faixaEsquerdaIds], coordenadasx[faixaEsquerdaIds]] = (255, 0, 0)
+    out_img[coordenadasy[faixaDireitaIds], coordenadasx[faixaDireitaIds]] = (0, 0, 255)
 
-    return mascara
+    return mascara, out_img, faixaEsquerda_fitx, faixaEsquerda_fit, faixaDireita_fitx, faixaDireita_fit
 
 def checarPicoValido(pico, ultimoPico, tol):
     if (abs(pico-ultimoPico) >= tol):
@@ -237,35 +292,53 @@ pontosRua = np.float32([topoEsq, topoDir, baseDir, baseEsq])
 #mostrarImagem(imagensTeste[0])
 mascara = processarImagem(imagensTeste[0], pontosRua, 50)
 mostrarImagem(mascara)
+cv2.imwrite('mascara.png', mascara)
 start = time.time()
-mascara2 = gerarCurvasDaFaixa(mascara, 7)
+mascara2, out_img, esqx, _, dirx, _ = gerarCurvasDaFaixa(mascara, 7)
 end=time.time()
 t=end-start
 print(t)
 mostrarImagem(mascara2 * 255)
+mostrarImagem(out_img)
 
+t = np.zeros((720, 1280))
+#ids = (cx >= 640).nonzero()[0]
+for i in range(len(cx)):
+    if(cy[i] >= 640):
+        t[cx[i], cy[i]] = 255
 
+mostrarImagem(t)
 
+y = np.linspace(0, mascara.shape[0]-1, mascara.shape[0] )
+y = y.astype(int)
+t = np.zeros((720, 1280))
+esqx = esqx.astype(int)
+dirx = dirx.astype(int)
+for i in range(len(y)):
+    t[y[i], esqx[i]] = 255
+    t[y[i], dirx[i]] = 255
+
+mostrarImagem(t)
 
 #hist = np.histogram(mascara)
-import time
-km = KMeans(n_clusters = 2, max_iter=3)
-start = time.time()
-hist = mascara.sum(axis=0)
-#plt.plot(hist)
-teste = np.flatnonzero(mascara)%LARGURA
+
+#km = KMeans(n_clusters = 2, max_iter=3)
+#start = time.time()
+#hist = mascara.sum(axis=0)
+##plt.plot(hist)
+#teste = np.flatnonzero(mascara)%LARGURA
 #plt.hist(a)
 
 #km.fit(hist.reshape(-1,1))
-km.fit(teste.reshape(-1,1))
-end=time.time()
-t=end-start
-print(km.cluster_centers_)
-
-start = time.time()
-end=time.time()
-t=end-start
-print(t)
+#km.fit(teste.reshape(-1,1))
+#end=time.time()
+#t=end-start
+#print(km.cluster_centers_)
+#
+#start = time.time()
+#end=time.time()
+#t=end-start
+#print(t)
     
 
 
