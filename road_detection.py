@@ -106,9 +106,9 @@ def processarImagem(img, pontosRua, sobelSize = 5, threshold_min = 50):
     img_bw = cv2.cvtColor(img_distorcida, cv2.COLOR_BGR2GRAY)
     
     # Criar máscara de faixa amarela
-    AmareloHsvMin  = np.array([ 0, 80, 200])
-    AmareloHsvMax = np.array([ 40, 255, 255])
-    mascaraAmarelo = cv2.inRange(img_hsv, AmareloHsvMin, AmareloHsvMax)
+#    AmareloHsvMin  = np.array([ 0, 80, 200])
+#    AmareloHsvMax = np.array([ 40, 255, 255])
+#    mascaraAmarelo = cv2.inRange(img_hsv, AmareloHsvMin, AmareloHsvMax)
     
     # Criar máscara de faixa branca
     BrancoHsvMin  = np.array([50, 13, 160])
@@ -117,13 +117,14 @@ def processarImagem(img, pontosRua, sobelSize = 5, threshold_min = 50):
 #    mostrarImagem(mascaraBranco)    
     
     # Aplicar Sobel    
-    sobel = AplicarSobel(img_bw, k = 5)
+    sobel = AplicarSobel(img_bw, k = sobelSize)
     sobel = aplicarThreshold(sobel, threshold_min = threshold_min, threshold_max = 255)
 #    mostrarImagem(sobel)
     
     # Mascaras Combinadas
-    mascara = cv2.bitwise_or(mascaraAmarelo, mascaraBranco)
-    mascara = cv2.bitwise_or(mascara, sobel)
+#    mascara = cv2.bitwise_or(mascaraAmarelo, mascaraBranco)
+#    mascara = cv2.bitwise_or(mascara, sobel)
+    mascara = cv2.bitwise_or(mascaraBranco, sobel)
 
     return mascara
 
@@ -153,7 +154,7 @@ def gerarCurvasDaFaixa(img, n_janelas, margem=50, tolerancia = 25):
     picoEsquerdoBase = np.argmax(histograma[:metade])
     picoDireitoBase = np.argmax(histograma[metade:]) + metade    
     
-    mascara = np.zeros_like(img)
+#    mascara = np.zeros_like(img)
     coordenadas = img.nonzero()
     coordenadasx = np.array(coordenadas[0])
     coordenadasy = np.array(coordenadas[1])
@@ -343,5 +344,41 @@ print(t)
 mostrarImagem(mascara2 * 255)
 mostrarImagem(out_img)
 
+# VIDEO 2
 
+# abrir video
+video2 = cv2.VideoCapture('videopbruno.mp4')
+
+# cortar video
+t1 = 2 * 60 #segundos
+t2 = 2.3 * 60 #segundos
+ffmpeg_extract_subclip("videopbruno.mp4", t1, t2, targetname="videopbruno_cortado.mp4")
+
+# Informaçoes do video
+LARGURA = int(video2.get(cv2.CAP_PROP_FRAME_WIDTH))
+ALTURA = int(video2.get(cv2.CAP_PROP_FRAME_HEIGHT))
+FPS = video2.get(cv2.CAP_PROP_FPS)
+
+fourcc = cv2.VideoWriter_fourcc(*'XVID')
+videofinal=cv2.VideoWriter('resultado.mp4',fourcc,FPS,(LARGURA,ALTURA))
+cont=0
+while(video2.isOpened()):
+    ret, frame = video2.read()  
+    if ret == True:
+        cont+=1
+        mascara = processarImagem(frame, pontosRua, 5, 50)
+        esq_fit, dir_fit = gerarCurvasDaFaixa(mascara, 5)
+        final = pintarPista(frame, x, pontosRua, esq_fit, dir_fit, 0.3, [255,255,0])
+        videofinal.write(final)
+        if(cont%60 == 0):
+            print(cont)
+#        cv2.imshow('frame',final)
+        if  cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+    else:
+        break
+
+video2.release()
+videofinal.release()
+cv2.destroyAllWindows()
 
