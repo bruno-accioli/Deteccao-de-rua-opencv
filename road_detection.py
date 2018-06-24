@@ -88,16 +88,16 @@ def processarImagem(img, pontosRua, sobelSize = 5, threshold_min = 50):
     MatDist = cv2.getPerspectiveTransform(pontosRua, destino)
     
     # Monstrar pontos
-    img2 = img.copy()
-    img2 = cv2.circle(img2, tuple(topoEsq), 3, (255,0,0), thickness=1, lineType=8, shift=0) 
-    img2 = cv2.circle(img2, tuple(topoDir), 3, (0,255,0), thickness=1, lineType=8, shift=0)
-    img2 = cv2.circle(img2, tuple(baseDir), 3, (0,0,255), thickness=1, lineType=8, shift=0)
-    img2 = cv2.circle(img2, tuple(baseEsq), 3, (0,255,255), thickness=1, lineType=8, shift=0)
-    
-    mostrarImagem(img2)
+#    img2 = img.copy()
+#    img2 = cv2.circle(img2, tuple(topoEsq), 3, (255,0,0), thickness=1, lineType=8, shift=0) 
+#    img2 = cv2.circle(img2, tuple(topoDir), 3, (0,255,0), thickness=1, lineType=8, shift=0)
+#    img2 = cv2.circle(img2, tuple(baseDir), 3, (0,0,255), thickness=1, lineType=8, shift=0)
+#    img2 = cv2.circle(img2, tuple(baseEsq), 3, (0,255,255), thickness=1, lineType=8, shift=0)
+#    
+#    mostrarImagem(img2)
     
     img_distorcida = cv2.warpPerspective(img, MatDist, (LARGURA, ALTURA))
-    mostrarImagem(img_distorcida)
+#    mostrarImagem(img_distorcida)
     
     # Coverter para HSV
     img_hsv = cv2.cvtColor(img_distorcida, cv2.COLOR_BGR2HSV)
@@ -114,22 +114,19 @@ def processarImagem(img, pontosRua, sobelSize = 5, threshold_min = 50):
     BrancoHsvMin  = np.array([50, 13, 160])
     BrancoHsvMax = np.array([255, 180, 255])
     mascaraBranco = cv2.inRange(img_hsv, BrancoHsvMin, BrancoHsvMax)
-    mostrarImagem(mascaraBranco)
-    
+#    mostrarImagem(mascaraBranco)    
     
     # Aplicar Sobel    
     sobel = AplicarSobel(img_bw, k = 5)
     sobel = aplicarThreshold(sobel, threshold_min = threshold_min, threshold_max = 255)
-    mostrarImagem(sobel)
+#    mostrarImagem(sobel)
     
     # Mascaras Combinadas
     mascara = cv2.bitwise_or(mascaraAmarelo, mascaraBranco)
     mascara = cv2.bitwise_or(mascara, sobel)
-#    mascara = cv2.bitwise_or(mascara, sobely)
-#    mostrarImagem(mascara)
+
     return mascara
-#    res = cv2.bitwise_and(img_distorcida,img_distorcida, mask=mascara)
-#    mostrarImagem(res)
+
 
 def pegarPontosDaRua(larguraBaseRazao, larguraTopoRazao, alturaRazao, 
                      pixelsDoCarroRazao, DeslocamentoLateralRazao = 0):
@@ -146,19 +143,20 @@ def pegarPontosDaRua(larguraBaseRazao, larguraTopoRazao, alturaRazao,
     return pontoTopoEsquerda, pontoTopoDireita, pontoBaseDireita, pontoBaseEsquerda
 
 def gerarCurvasDaFaixa(img, n_janelas, margem=50, tolerancia = 25):
+    # OBS
+    # X = EIXO DA ALTURA DA IMAGEM (720)
+    # Y = EIXO DA LARGURA DA IMAGEM (1280)
     # Achar picos do histograma da metade de baixo da imagem    
     minpix = 50
     histograma = np.sum(img[int(ALTURA/2):,:], axis=0)
     metade = int(LARGURA/2)
     picoEsquerdoBase = np.argmax(histograma[:metade])
-    picoDireitoBase = np.argmax(histograma[metade:]) + metade
-    print(np.argmax(histograma[metade:]))
-    
+    picoDireitoBase = np.argmax(histograma[metade:]) + metade    
     
     mascara = np.zeros_like(img)
     coordenadas = img.nonzero()
-    coordenadasy = np.array(coordenadas[0])
-    coordenadasx = np.array(coordenadas[1])
+    coordenadasx = np.array(coordenadas[0])
+    coordenadasy = np.array(coordenadas[1])
     
     faixaEsquerda = np.array([])
     faixaDireita = np.array([])
@@ -169,34 +167,32 @@ def gerarCurvasDaFaixa(img, n_janelas, margem=50, tolerancia = 25):
     picoEsquerdo = picoEsquerdoBase
     picoDireito = picoDireitoBase
     alturaJanela = ceil(ALTURA/n_janelas)
-    cont=1
-    for inicioJanela_Y in np.arange(0, ALTURA, alturaJanela):
-        fimJanela_Y = inicioJanela_Y + alturaJanela
-#        histograma = np.sum(img[inicioJanela_Y:fimJanela_Y,:], axis=0)
-#        picoEsquerdo = np.argmax(histograma[:metade])
-#        picoDireito = np.argmax(histograma[metade:]) + metade    
-        print('Iteraçao %d' %cont)
-        print('Pico Esquerdo: %d' %picoEsquerdo)
-        print('Pico Direito: %d\n' %picoDireito)
-        cont += 1
+#    cont=1    
+    for inicioJanela_X in np.arange(0, ALTURA, alturaJanela):
+        fimJanela_X = inicioJanela_X + alturaJanela 
+#        print('Iteraçao %d' %cont)
+#        print('Pico Esquerdo: %d' %picoEsquerdo)
+#        print('Pico Direito: %d\n' %picoDireito)
+#        cont += 1
+        
         if (not checarPicoValido(picoEsquerdo, ultimoPicoEsquerdo, tolerancia)):
             picoEsquerdo = ultimoPicoEsquerdo
         
-        inicioJanelaEsquerda_X = picoEsquerdo-margem
-        fimJanelaEsquerda_X = picoEsquerdo+margem
-        mascara[inicioJanela_Y:fimJanela_Y, inicioJanelaEsquerda_X:fimJanelaEsquerda_X] = 1
+        inicioJanelaEsquerda_Y = picoEsquerdo-margem
+        fimJanelaEsquerda_Y = picoEsquerdo+margem
+#        mascara[inicioJanela_X:fimJanela_X, inicioJanelaEsquerda_Y:fimJanelaEsquerda_Y] = 1
 
         if (not checarPicoValido(picoDireito, ultimoPicoDireito, tolerancia)):
             picoDireito = ultimoPicoDireito
-        inicioJanelaDireita_X = picoDireito-margem
-        fimJanelaDireita_X = picoDireito+margem
-        mascara[inicioJanela_Y:fimJanela_Y, inicioJanelaDireita_X:fimJanelaDireita_X] = 1
+        inicioJanelaDireita_Y = picoDireito-margem
+        fimJanelaDireita_Y = picoDireito+margem
+#        mascara[inicioJanela_X:fimJanela_X, inicioJanelaDireita_Y:fimJanelaDireita_Y] = 1
         
-        faixaEsquerdaIds = ((coordenadasx >= inicioJanelaEsquerda_X) & (coordenadasx <= fimJanelaEsquerda_X) &
-                            (coordenadasy >= inicioJanela_Y) & (coordenadasy >= fimJanela_Y)).nonzero()[0]
+        faixaEsquerdaIds = ((coordenadasy >= inicioJanelaEsquerda_Y) & (coordenadasy <= fimJanelaEsquerda_Y) &
+                            (coordenadasx >= inicioJanela_X) & (coordenadasx >= fimJanela_X)).nonzero()[0]
 
-        faixaDireitaIds = ((coordenadasx >= inicioJanelaDireita_X) & (coordenadasx <= fimJanelaDireita_X) &
-                            (coordenadasy >= inicioJanela_Y) & (coordenadasy >= fimJanela_Y)).nonzero()[0]
+        faixaDireitaIds = ((coordenadasy >= inicioJanelaDireita_Y) & (coordenadasy <= fimJanelaDireita_Y) &
+                            (coordenadasx >= inicioJanela_X) & (coordenadasy >= fimJanela_X)).nonzero()[0]
         
         faixaDireita = np.append(faixaDireita, faixaDireitaIds, axis=0)
         faixaEsquerda = np.append(faixaEsquerda, faixaEsquerdaIds, axis=0)
@@ -205,31 +201,55 @@ def gerarCurvasDaFaixa(img, n_janelas, margem=50, tolerancia = 25):
         ultimoPicoDireito = picoDireito
         
         if len(faixaEsquerdaIds) >= minpix:
-            picoEsquerdo = np.int(np.mean(coordenadasx[faixaEsquerdaIds]))
+            picoEsquerdo = np.int(np.mean(coordenadasy[faixaEsquerdaIds]))
             
         if len(faixaDireitaIds) >= minpix:
-            picoDireito = np.int(np.mean(coordenadasx[faixaDireitaIds]))
+            picoDireito = np.int(np.mean(coordenadasy[faixaDireitaIds]))
     
     faixaEsquerdax = coordenadasx[faixaEsquerda.astype(int)]
     faixaEsquerday = coordenadasy[faixaEsquerda.astype(int)] 
     faixaDireitax = coordenadasx[faixaDireita.astype(int)]
     faixaDireitay = coordenadasy[faixaDireita.astype(int)] 
     
-    # Fit a second order polynomial to each
-    faixaEsquerda_fit = np.polyfit(faixaEsquerday, faixaEsquerdax, 2)
-    faixaDireita_fit = np.polyfit(faixaDireitay, faixaDireitax, 2)
+    # Achar polinomio de segunda ordem (y = ax**2 + bx + c)
+    faixaEsquerda_fit = np.polyfit(faixaEsquerdax, faixaEsquerday, 2)
+    faixaDireita_fit = np.polyfit(faixaDireitax, faixaDireitay, 2)
     
     # Generate x and y values for plotting
-    ploty = np.linspace(0, img.shape[0]-1, img.shape[0] )
-    faixaEsquerda_fitx = faixaEsquerda_fit[0]*ploty**2 + faixaEsquerda_fit[1]*ploty + faixaEsquerda_fit[2]
-    faixaDireita_fitx = faixaDireita_fit[0]*ploty**2 + faixaDireita_fit[1]*ploty + faixaDireita_fit[2]
-    
-    # Color the left lane red and the right lane blue
-    out_img = np.uint8(np.dstack((img, img, img))*255)
-    out_img[coordenadasy[faixaEsquerdaIds], coordenadasx[faixaEsquerdaIds]] = (255, 0, 0)
-    out_img[coordenadasy[faixaDireitaIds], coordenadasx[faixaDireitaIds]] = (0, 0, 255)
+#    plotx = np.linspace(0, img.shape[0]-1, img.shape[0] )
+#    faixaEsquerda_fity = faixaEsquerda_fit[0]*plotx**2 + faixaEsquerda_fit[1]*plotx + faixaEsquerda_fit[2]
+#    faixaDireita_fity = faixaDireita_fit[0]*plotx**2 + faixaDireita_fit[1]*plotx + faixaDireita_fit[2]
 
-    return mascara, out_img, faixaEsquerda_fitx, faixaEsquerda_fit, faixaDireita_fitx, faixaDireita_fit
+#    return mascara, faixaEsquerda_fity, faixaEsquerda_fit, faixaDireita_fity, faixaDireita_fit
+    return faixaEsquerda_fit, faixaDireita_fit
+
+def pintarPista(img, x, pontosRua, esq_fit, dir_fit, transparencia, cor):
+    # Gerar Pontos    
+    p_esq = np.poly1d(esq_fit)
+    p_dir = np.poly1d(dir_fit)
+    y_esq = p_esq(x)
+    y_dir = p_dir(x)
+
+    pts_esq = np.stack((y_esq,x),1)
+    pts_dir = np.stack((y_dir,x),1)
+    
+    pts = np.append(pts_esq, np.flip(pts_dir,0),0).astype(np.int32)    
+    
+    # Gerar mascara da pista    
+    origem = np.float32([[0,0], [LARGURA, 0], [LARGURA, ALTURA], [0, ALTURA]])
+    matDist = cv2.getPerspectiveTransform(origem, pontosRua)
+    
+    mascaraPista = np.zeros([ALTURA, LARGURA, 3])
+    mascaraPista = cv2.fillConvexPoly(mascaraPista, pts, np.multiply(cor, transparencia))
+    mascaraPista = cv2.warpPerspective(mascaraPista, matDist, (LARGURA, ALTURA))
+    
+#    pistaColorida = mascaraPista * cor * transparencia
+    
+    # Pintar rua
+    final = cv2.add(mascaraPista, img, dtype=0)        
+    
+    
+    return final
 
 def checarPicoValido(pico, ultimoPico, tol):
     if (abs(pico-ultimoPico) >= tol):
@@ -285,71 +305,43 @@ pontosRua = np.float32([topoEsq, topoDir, baseDir, baseEsq])
 #processarImagem(imagensTeste[0], pontosRua)
 #mostrarImagem(imagensTeste[0])
 
-# Sobel
-#for i in range(len(imagensTeste)):
-#    mostrarImagem(imagensTeste[i])
-#    processarImagem(imagensTeste[i], pontosRua, 50)
-#mostrarImagem(imagensTeste[0])
+# pontos para trcar a rua
+n=5
+intervalo = ceil(ALTURA / (n-1))
+x = np.arange(0, ALTURA+1, intervalo)
+
+# PIPELINE
+
+start = time.time()
+mascara = processarImagem(imagensTeste[0], pontosRua, 50)
+t1=time.time()-start
+
+start2 = time.time()
+esq_fit, dir_fit = gerarCurvasDaFaixa(mascara, 5)
+t2=time.time()-start2
+
+start3 = time.time()
+final = pintarPista(imagensTeste[0], x, pontosRua, esq_fit, dir_fit, 0.3, [255,255,0])
+t3=time.time()-start3
+
+end=time.time()
+t=end-start
+print('tempo total: %.4f s' %(t))
+print('tempo f1: %.4f s' %(t1))
+print('tempo f2: %.4f s' %(t2))
+print('tempo f3: %.4f s' %(t3))
+mostrarImagem(final)
+
 mascara = processarImagem(imagensTeste[0], pontosRua, 50)
 mostrarImagem(mascara)
 cv2.imwrite('mascara.png', mascara)
 start = time.time()
-mascara2, out_img, esqx, _, dirx, _ = gerarCurvasDaFaixa(mascara, 7)
+mascara2, out_img, esqy, esq_fit, diry, dir_fit = gerarCurvasDaFaixa(mascara, 7)
 end=time.time()
 t=end-start
 print(t)
 mostrarImagem(mascara2 * 255)
 mostrarImagem(out_img)
-
-t = np.zeros((720, 1280))
-#ids = (cx >= 640).nonzero()[0]
-for i in range(len(cx)):
-    if(cy[i] >= 640):
-        t[cx[i], cy[i]] = 255
-
-mostrarImagem(t)
-
-y = np.linspace(0, mascara.shape[0]-1, mascara.shape[0] )
-y = y.astype(int)
-t = np.zeros((720, 1280))
-esqx = esqx.astype(int)
-dirx = dirx.astype(int)
-for i in range(len(y)):
-    t[y[i], esqx[i]] = 255
-    t[y[i], dirx[i]] = 255
-
-mostrarImagem(t)
-
-#hist = np.histogram(mascara)
-
-#km = KMeans(n_clusters = 2, max_iter=3)
-#start = time.time()
-#hist = mascara.sum(axis=0)
-##plt.plot(hist)
-#teste = np.flatnonzero(mascara)%LARGURA
-#plt.hist(a)
-
-#km.fit(hist.reshape(-1,1))
-#km.fit(teste.reshape(-1,1))
-#end=time.time()
-#t=end-start
-#print(km.cluster_centers_)
-#
-#start = time.time()
-#end=time.time()
-#t=end-start
-#print(t)
-    
-
-
-#BGR
-#img = np.copy(imagensTeste[0])
-#img = cv2.circle(img, tuple(topoEsq), 3, (255,0,0), thickness=1, lineType=8, shift=0) 
-#img = cv2.circle(img, tuple(topoDir), 3, (0,255,0), thickness=1, lineType=8, shift=0)
-#img = cv2.circle(img, tuple(baseDir), 3, (0,0,255), thickness=1, lineType=8, shift=0)
-#img = cv2.circle(img, tuple(baseEsq), 3, (0,255,255), thickness=1, lineType=8, shift=0)
-#
-#mostrarImagem(img)
 
 
 
