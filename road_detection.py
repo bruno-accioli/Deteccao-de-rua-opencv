@@ -213,8 +213,13 @@ def gerarCurvasDaFaixa(img, n_janelas, margem=50, tolerancia = 25):
     faixaDireitay = coordenadasy[faixaDireita.astype(int)] 
     
     # Achar polinomio de segunda ordem (y = ax**2 + bx + c)
-    faixaEsquerda_fit = np.polyfit(faixaEsquerdax, faixaEsquerday, 2)
-    faixaDireita_fit = np.polyfit(faixaDireitax, faixaDireitay, 2)
+    faixaEsquerda_fit = np.array([0.0,0.0,0.0])
+    if (len(faixaEsquerdax) != 0):        
+        faixaEsquerda_fit = np.polyfit(faixaEsquerdax, faixaEsquerday, 2)
+        
+    faixaDireita_fit = np.array([0.0,0.0,0.0])
+    if (len(faixaDireitax) != 0): 
+        faixaDireita_fit = np.polyfit(faixaDireitax, faixaDireitay, 2)
     
     # Generate x and y values for plotting
 #    plotx = np.linspace(0, img.shape[0]-1, img.shape[0] )
@@ -262,17 +267,17 @@ def checarPicoValido(pico, ultimoPico, tol):
     return True
 
 # cortar video
-t1 = 28 * 60 #segundos
-t2 = 32 * 60 #segundos
+#t1 = 28 * 60 #segundos
+#t2 = 32 * 60 #segundos
 #ffmpeg_extract_subclip("video_inteiro_720.mp4", t1, t2, targetname="video_parte_720.mp4")
 
 # abrir video
-video = cv2.VideoCapture('video_parte_720.mp4')
+#video = cv2.VideoCapture('video_parte_720.mp4')
 
 # Informaçoes do video
-LARGURA = int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
-ALTURA = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
-FPS = video.get(cv2.CAP_PROP_FPS)
+#LARGURA = int(video.get(cv2.CAP_PROP_FRAME_WIDTH))
+#ALTURA = int(video.get(cv2.CAP_PROP_FRAME_HEIGHT))
+#FPS = video.get(cv2.CAP_PROP_FPS)
 
 
 # Gerar imagens de teste e salvar
@@ -301,67 +306,75 @@ while True:
     
     
 # Pontos que delimitam a rua
-topoEsq, topoDir, baseDir, baseEsq = pegarPontosDaRua(0.65, 0.135, 0.20, 0.12, -0.005)
-pontosRua = np.float32([topoEsq, topoDir, baseDir, baseEsq])
+#topoEsq, topoDir, baseDir, baseEsq = pegarPontosDaRua(0.65, 0.135, 0.20, 0.12, -0.005)
+#pontosRua = np.float32([topoEsq, topoDir, baseDir, baseEsq])
 #processarImagem(imagensTeste[0], pontosRua)
 #mostrarImagem(imagensTeste[0])
 
 # pontos para trcar a rua
-n=5
-intervalo = ceil(ALTURA / (n-1))
-x = np.arange(0, ALTURA+1, intervalo)
+#n=5
+#intervalo = ceil(ALTURA / (n-1))
+#x = np.arange(0, ALTURA+1, intervalo)
 
 # PIPELINE
+#
+#start = time.time()
+#mascara = processarImagem(imagensTeste[0], pontosRua, 50)
+#t1=time.time()-start
+#
+#start2 = time.time()
+#esq_fit, dir_fit = gerarCurvasDaFaixa(mascara, 5)
+#t2=time.time()-start2
+#
+#start3 = time.time()
+#final = pintarPista(imagensTeste[0], x, pontosRua, esq_fit, dir_fit, 0.3, [255,255,0])
+#t3=time.time()-start3
+#
+#end=time.time()
+#t=end-start
+#print('tempo total: %.4f s' %(t))
+#print('tempo f1: %.4f s' %(t1))
+#print('tempo f2: %.4f s' %(t2))
+#print('tempo f3: %.4f s' %(t3))
+#mostrarImagem(final)
+#
+#mascara = processarImagem(imagensTeste[0], pontosRua, 50)
+#mostrarImagem(mascara)
+#cv2.imwrite('mascara.png', mascara)
+#start = time.time()
+#mascara2, out_img, esqy, esq_fit, diry, dir_fit = gerarCurvasDaFaixa(mascara, 7)
+#end=time.time()
+#t=end-start
+#print(t)
+#mostrarImagem(mascara2 * 255)
+#mostrarImagem(out_img)
 
-start = time.time()
-mascara = processarImagem(imagensTeste[0], pontosRua, 50)
-t1=time.time()-start
-
-start2 = time.time()
-esq_fit, dir_fit = gerarCurvasDaFaixa(mascara, 5)
-t2=time.time()-start2
-
-start3 = time.time()
-final = pintarPista(imagensTeste[0], x, pontosRua, esq_fit, dir_fit, 0.3, [255,255,0])
-t3=time.time()-start3
-
-end=time.time()
-t=end-start
-print('tempo total: %.4f s' %(t))
-print('tempo f1: %.4f s' %(t1))
-print('tempo f2: %.4f s' %(t2))
-print('tempo f3: %.4f s' %(t3))
-mostrarImagem(final)
-
-mascara = processarImagem(imagensTeste[0], pontosRua, 50)
-mostrarImagem(mascara)
-cv2.imwrite('mascara.png', mascara)
-start = time.time()
-mascara2, out_img, esqy, esq_fit, diry, dir_fit = gerarCurvasDaFaixa(mascara, 7)
-end=time.time()
-t=end-start
-print(t)
-mostrarImagem(mascara2 * 255)
-mostrarImagem(out_img)
-
-# VIDEO 2
-
-# abrir video
+ # abrir video
 video2 = cv2.VideoCapture('videopbruno.mp4')
 
 # cortar video
+'''
 t1 = 2 * 60 #segundos
 t2 = 2.3 * 60 #segundos
 ffmpeg_extract_subclip("videopbruno.mp4", t1, t2, targetname="videopbruno_cortado.mp4")
-
+'''
 # Informaçoes do video
 LARGURA = int(video2.get(cv2.CAP_PROP_FRAME_WIDTH))
 ALTURA = int(video2.get(cv2.CAP_PROP_FRAME_HEIGHT))
 FPS = video2.get(cv2.CAP_PROP_FPS)
 
+topoEsq, topoDir, baseDir, baseEsq = pegarPontosDaRua(0.65, 0.135, 0.20, 0.12, -0.005)
+pontosRua = np.float32([topoEsq, topoDir, baseDir, baseEsq])
+
+n=5
+intervalo = ceil(ALTURA / (n-1))
+x = np.arange(0, ALTURA+1, intervalo)
+
+
 fourcc = cv2.VideoWriter_fourcc(*'XVID')
-videofinal=cv2.VideoWriter('resultado.mp4',fourcc,FPS,(LARGURA,ALTURA))
+videofinal=cv2.VideoWriter('resultado2.mp4',fourcc,FPS,(LARGURA,ALTURA))
 cont=0
+ini = time.time()
 while(video2.isOpened()):
     ret, frame = video2.read()  
     if ret == True:
@@ -370,9 +383,9 @@ while(video2.isOpened()):
         esq_fit, dir_fit = gerarCurvasDaFaixa(mascara, 5)
         final = pintarPista(frame, x, pontosRua, esq_fit, dir_fit, 0.3, [255,255,0])
         videofinal.write(final)
-        if(cont%60 == 0):
-            print(cont)
-#        cv2.imshow('frame',final)
+        if(cont%150 == 0):
+            print('%.2f' %((cont*100) / 16050.0) )
+        cv2.imshow('frame',final)
         if  cv2.waitKey(1) & 0xFF == ord('q'):
             break
     else:
@@ -381,4 +394,9 @@ while(video2.isOpened()):
 video2.release()
 videofinal.release()
 cv2.destroyAllWindows()
+
+fim = time.time()
+
+t=fim-ini
+print(t)
 
